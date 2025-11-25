@@ -1,0 +1,15 @@
+{
+    "name": "your-name/wp-webp-intervention-converter",
+    "description": "WordPress plugin for converting images to WebP using Intervention Image v3",
+    "type": "wordpress-plugin",
+    "license": "GPL-2.0-or-later",
+    "require": {
+        "php": ">=8.1",
+        "intervention/image": "^3.11"
+    },
+    "autoload": {
+        "psr-4": {
+            "WebPConverter\\": "includes/"
+        }
+    }
+}
