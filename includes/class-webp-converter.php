@@ -33,6 +33,7 @@ class WebP_Converter {
         add_filter('the_content', [$this, 'replace_content_urls'], 999);
         add_filter('wp_get_attachment_url', [$this, 'replace_attachment_url'], 10, 2);
         add_filter('wp_get_attachment_image_src', [$this, 'replace_image_src'], 10, 4);
+        add_filter('post_thumbnail_url', [$this, 'replace_thumbnail_url'], 10, 2);
         
         // Output buffering to catch ALL URLs (including custom templates)
         add_action('template_redirect', [$this, 'start_output_buffer'], 1);
@@ -454,6 +455,37 @@ class WebP_Converter {
         $webp_path = str_replace($upload_dir['baseurl'], $upload_dir['basedir'], $webp_url);
         
         if (file_exists($webp_path)) {
+            return $webp_url;
+        }
+        
+        return $url;
+    }
+    
+    /**
+     * Replace thumbnail URL (for get_the_post_thumbnail_url)
+     * 
+     * This filter catches calls to get_the_post_thumbnail_url() in custom themes
+     * 
+     * @param string $url Thumbnail URL
+     * @param int $post_id Post ID
+     * @return string Modified URL
+     */
+    public function replace_thumbnail_url(string $url, int $post_id): string {
+        // Skip if URL is empty
+        if (empty($url)) {
+            return $url;
+        }
+        
+        // Only process JPG/PNG images
+        if (!preg_match('/\.(jpe?g|png)$/i', $url)) {
+            return $url;
+        }
+        
+        // Get WebP URL
+        $webp_url = preg_replace('/\.(jpe?g|png)$/i', '.webp', $url);
+        
+        // Check if WebP file exists
+        if ($this->webp_file_exists($webp_url)) {
             return $webp_url;
         }
         
