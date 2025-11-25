@@ -36,6 +36,40 @@ class WebP_Converter {
         
         // Output buffering to catch ALL URLs (including custom templates)
         add_action('template_redirect', [$this, 'start_output_buffer'], 1);
+        
+        // Register WebP MIME type
+        add_filter('mime_types', [$this, 'add_webp_mime_type']);
+        add_filter('upload_mimes', [$this, 'add_webp_mime_type']);
+        add_filter('wp_check_filetype_and_ext', [$this, 'fix_webp_mime_type'], 10, 5);
+    }
+    
+    /**
+     * Add WebP to allowed MIME types
+     * 
+     * @param array $mimes Existing MIME types
+     * @return array Modified MIME types
+     */
+    public function add_webp_mime_type(array $mimes): array {
+        $mimes['webp'] = 'image/webp';
+        return $mimes;
+    }
+    
+    /**
+     * Fix WebP MIME type detection
+     * 
+     * @param array $data File data
+     * @param string $file File path
+     * @param string $filename File name
+     * @param array $mimes Allowed MIME types
+     * @param string $real_mime Real MIME type
+     * @return array Modified file data
+     */
+    public function fix_webp_mime_type($data, $file, $filename, $mimes, $real_mime) {
+        if (false !== strpos($filename, '.webp')) {
+            $data['ext'] = 'webp';
+            $data['type'] = 'image/webp';
+        }
+        return $data;
     }
     
     /**
