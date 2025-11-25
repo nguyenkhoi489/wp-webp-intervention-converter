@@ -93,36 +93,61 @@ class WebP_Converter {
      * @return string Modified HTML with WebP URLs
      */
     public function replace_urls_in_html(string $html): string {
-        // Match all image URLs in src, srcset, and data-src attributes
-        $patterns = [
-            // src attribute: src="...jpg/png"
-            '/(src\s*=\s*["\'])([^"\']*\.(jpe?g|png))(["\'])/i',
-            // srcset attribute: srcset="...jpg/png"
-            '/(srcset\s*=\s*["\'])([^"\']*\.(jpe?g|png))(["\'])/i',
-            // data-src attribute (lazy loading): data-src="...jpg/png"
-            '/(data-src\s*=\s*["\'])([^"\']*\.(jpe?g|png))(["\'])/i',
-            // Background images in style: url(...jpg/png)
-            '/(url\s*\(\s*["\']?)([^"\']*\.(jpe?g|png))(["\']?\s*\))/i',
-        ];
+        // Skip if HTML is empty
+        if (empty($html)) {
+            return $html;
+        }
         
-        foreach ($patterns as $pattern) {
-            $html = preg_replace_callback($pattern, function($matches) {
-                $prefix = $matches[1];
+        // Get upload directory info once
+        $upload_dir = wp_upload_dir();
+        $base_url = $upload_dir['baseurl'];
+        $base_dir = $upload_dir['basedir'];
+        
+        // Replace image URLs in src attributes
+        $html = preg_replace_callback(
+            '/(src\s*=\s*["\'])([^"\']*\.(jpe?g|png))(["\'])/i',
+            function($matches) use ($base_url, $base_dir) {
                 $original_url = $matches[2];
-                $suffix = $matches[4];
-                
-                // Generate WebP URL
                 $webp_url = preg_replace('/\.(jpe?g|png)$/i', '.webp', $original_url);
                 
                 // Check if WebP file exists
-                if ($this->webp_file_exists($webp_url)) {
-                    return $prefix . $webp_url . $suffix;
+                $webp_path = str_replace($base_url, $base_dir, $webp_url);
+                if (file_exists($webp_path)) {
+                    return $matches[1] . $webp_url . $matches[4];
                 }
                 
-                // Return original if WebP doesn't exist
                 return $matches[0];
-            }, $html);
-        }
+            },
+            $html
+        );
+        
+        // Replace in srcset attributes
+        $html = preg_replace_callback(
+            '/(srcset\s*=\s*["\'])([^"\']+)(["\'])/i',
+            function($matches) use ($base_url, $base_dir) {
+                $srcset = $matches[2];
+                
+                // Process each URL in srcset
+                $srcset = preg_replace_callback(
+                    '/([^\s,]+\.(jpe?g|png))/i',
+                    function($url_match) use ($base_url, $base_dir) {
+                        $original_url = $url_match[1];
+                        $webp_url = preg_replace('/\.(jpe?g|png)$/i', '.webp', $original_url);
+                        
+                        $webp_path = str_replace($base_url, $base_dir, $webp_url);
+                        if (file_exists($webp_path)) {
+                            return $webp_url;
+                        }
+                        
+                        return $original_url;
+                    },
+                    $srcset
+                );
+                
+                return $matches[1] . $srcset . $matches[3];
+            },
+            $html
+        );
         
         return $html;
     }
