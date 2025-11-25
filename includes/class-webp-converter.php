@@ -57,8 +57,23 @@ class WebP_Converter {
             return $metadata;
         }
         
-        // Convert to WebP
+        // Convert original image to WebP
         $this->convert_to_webp($file_path);
+        
+        // Convert all thumbnail sizes to WebP
+        if (!empty($metadata['sizes']) && is_array($metadata['sizes'])) {
+            $upload_dir = wp_upload_dir();
+            $base_dir = dirname($file_path);
+            
+            foreach ($metadata['sizes'] as $size => $size_data) {
+                if (isset($size_data['file'])) {
+                    $thumbnail_path = $base_dir . '/' . $size_data['file'];
+                    if (file_exists($thumbnail_path)) {
+                        $this->convert_to_webp($thumbnail_path);
+                    }
+                }
+            }
+        }
         
         return $metadata;
     }
@@ -250,8 +265,23 @@ class WebP_Converter {
             wp_send_json_error('File not found');
         }
         
-        // Convert to WebP
+        // Convert original to WebP
         $success = $this->convert_to_webp($file_path);
+        
+        // Convert all thumbnails
+        $metadata = wp_get_attachment_metadata($attachment_id);
+        if (!empty($metadata['sizes']) && is_array($metadata['sizes'])) {
+            $base_dir = dirname($file_path);
+            
+            foreach ($metadata['sizes'] as $size => $size_data) {
+                if (isset($size_data['file'])) {
+                    $thumbnail_path = $base_dir . '/' . $size_data['file'];
+                    if (file_exists($thumbnail_path)) {
+                        $this->convert_to_webp($thumbnail_path);
+                    }
+                }
+            }
+        }
         
         if ($success) {
             wp_send_json_success([
@@ -295,13 +325,21 @@ class WebP_Converter {
      * Replace attachment URL
      * 
      * @param string $url Attachment URL
-     * @param int $attachment_id Attachment ID
+     * @param mixed $attachment_id Attachment ID (can be int, string, or empty)
      * @return string Modified URL
      */
-    public function replace_attachment_url(string $url, int $attachment_id): string {
+    public function replace_attachment_url(string $url, $attachment_id): string {
+        // Return early if attachment_id is invalid
+        if (empty($attachment_id) || !is_numeric($attachment_id)) {
+            return $url;
+        }
+        
+        // Convert to int
+        $attachment_id = intval($attachment_id);
+        
         // Only process images
         $mime_type = get_post_mime_type($attachment_id);
-        if (!in_array($mime_type, ['image/jpeg', 'image/png'])) {
+        if (!$mime_type || !in_array($mime_type, ['image/jpeg', 'image/png'])) {
             return $url;
         }
         
@@ -323,19 +361,23 @@ class WebP_Converter {
      * Replace image src array
      * 
      * @param array|false $image Image data array or false
-     * @param int $attachment_id Attachment ID
+     * @param mixed $attachment_id Attachment ID (can be int, string, or empty)
      * @param string|int[] $size Image size
      * @param bool $icon Whether to use icon
      * @return array|false Modified image data
      */
-    public function replace_image_src($image, int $attachment_id, $size, bool $icon) {
-        if (!$image) {
+    public function replace_image_src($image, $attachment_id, $size, bool $icon) {
+        // Return early if image is false or attachment_id is invalid
+        if (!$image || empty($attachment_id) || !is_numeric($attachment_id)) {
             return $image;
         }
         
+        // Convert to int
+        $attachment_id = intval($attachment_id);
+        
         // Only process images
         $mime_type = get_post_mime_type($attachment_id);
-        if (!in_array($mime_type, ['image/jpeg', 'image/png'])) {
+        if (!$mime_type || !in_array($mime_type, ['image/jpeg', 'image/png'])) {
             return $image;
         }
         
