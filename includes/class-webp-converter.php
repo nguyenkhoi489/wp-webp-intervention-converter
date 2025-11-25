@@ -160,6 +160,7 @@ class WebP_Converter {
      */
     private function webp_file_exists(string $webp_url): bool {
         $upload_dir = wp_upload_dir();
+        $basedir = trim($upload_dir['basedir']);
         
         // Handle both absolute URLs and relative paths
         if (strpos($webp_url, 'http') === 0) {
@@ -167,10 +168,10 @@ class WebP_Converter {
             // Handle both http:// and https:// by making it protocol-agnostic
             $base_url = preg_replace('/^https?:\/\//', '', $upload_dir['baseurl']);
             $test_url = preg_replace('/^https?:\/\//', '', $webp_url);
-            $webp_path = str_replace($base_url, $upload_dir['basedir'], $test_url);
+            $webp_path = str_replace($base_url, $basedir, $test_url);
         } else {
             // Relative path - prepend basedir
-            $webp_path = $upload_dir['basedir'] . '/' . ltrim($webp_url, '/');
+            $webp_path = $basedir . '/' . ltrim($webp_url, '/');
         }
         
         return file_exists($webp_path);
