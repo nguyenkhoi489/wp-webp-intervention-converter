@@ -55,6 +55,22 @@ class WP_WebP_Intervention_Converter {
         
         // Initialize converter
         new WebP_Converter();
+        
+        // Add action links to plugin page
+        add_filter('plugin_action_links_' . plugin_basename(__FILE__), [$this, 'add_action_links']);
+    }
+    
+    /**
+     * Add action links to plugin list page
+     * 
+     * @param array $actions Existing action links
+     * @return array Modified action links
+     */
+    public function add_action_links(array $actions): array {
+        $plugin_links = [
+            '<a href="' . admin_url('admin.php?page=webp-converter') . '">' . esc_html__('Settings', 'wp-webp-intervention-converter') . '</a>',
+        ];
+        return array_merge($plugin_links, $actions);
     }
 }
 
