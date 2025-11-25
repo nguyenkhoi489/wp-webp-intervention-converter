@@ -33,6 +33,75 @@ class WebP_Converter {
         add_filter('the_content', [$this, 'replace_content_urls'], 999);
         add_filter('wp_get_attachment_url', [$this, 'replace_attachment_url'], 10, 2);
         add_filter('wp_get_attachment_image_src', [$this, 'replace_image_src'], 10, 4);
+        
+        // Output buffering to catch ALL URLs (including custom templates)
+        add_action('template_redirect', [$this, 'start_output_buffer'], 1);
+    }
+    
+    /**
+     * Start output buffering to replace URLs in final HTML
+     */
+    public function start_output_buffer(): void {
+        // Don't buffer admin pages or AJAX requests
+        if (is_admin() || wp_doing_ajax()) {
+            return;
+        }
+        
+        ob_start([$this, 'replace_urls_in_html']);
+    }
+    
+    /**
+     * Replace all image URLs in HTML output
+     * This catches URLs that are hard-coded in templates
+     * 
+     * @param string $html Complete HTML output
+     * @return string Modified HTML with WebP URLs
+     */
+    public function replace_urls_in_html(string $html): string {
+        // Match all image URLs in src, srcset, and data-src attributes
+        $patterns = [
+            // src attribute: src="...jpg/png"
+            '/(src\s*=\s*["\'])([^"\']*\.(jpe?g|png))(["\'])/i',
+            // srcset attribute: srcset="...jpg/png"
+            '/(srcset\s*=\s*["\'])([^"\']*\.(jpe?g|png))(["\'])/i',
+            // data-src attribute (lazy loading): data-src="...jpg/png"
+            '/(data-src\s*=\s*["\'])([^"\']*\.(jpe?g|png))(["\'])/i',
+            // Background images in style: url(...jpg/png)
+            '/(url\s*\(\s*["\']?)([^"\']*\.(jpe?g|png))(["\']?\s*\))/i',
+        ];
+        
+        foreach ($patterns as $pattern) {
+            $html = preg_replace_callback($pattern, function($matches) {
+                $prefix = $matches[1];
+                $original_url = $matches[2];
+                $suffix = $matches[4];
+                
+                // Generate WebP URL
+                $webp_url = preg_replace('/\.(jpe?g|png)$/i', '.webp', $original_url);
+                
+                // Check if WebP file exists
+                if ($this->webp_file_exists($webp_url)) {
+                    return $prefix . $webp_url . $suffix;
+                }
+                
+                // Return original if WebP doesn't exist
+                return $matches[0];
+            }, $html);
+        }
+        
+        return $html;
+    }
+    
+    /**
+     * Check if WebP file exists
+     * 
+     * @param string $webp_url WebP file URL
+     * @return bool True if file exists
+     */
+    private function webp_file_exists(string $webp_url): bool {
+        $upload_dir = wp_upload_dir();
+        $webp_path = str_replace($upload_dir['baseurl'], $upload_dir['basedir'], $webp_url);
+        return file_exists($webp_path);
     }
     
     /**
