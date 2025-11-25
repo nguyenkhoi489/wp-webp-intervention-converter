@@ -164,7 +164,10 @@ class WebP_Converter {
         // Handle both absolute URLs and relative paths
         if (strpos($webp_url, 'http') === 0) {
             // Absolute URL - convert to path
-            $webp_path = str_replace($upload_dir['baseurl'], $upload_dir['basedir'], $webp_url);
+            // Handle both http:// and https:// by making it protocol-agnostic
+            $base_url = preg_replace('/^https?:\/\//', '', $upload_dir['baseurl']);
+            $test_url = preg_replace('/^https?:\/\//', '', $webp_url);
+            $webp_path = str_replace($base_url, $upload_dir['basedir'], $test_url);
         } else {
             // Relative path - prepend basedir
             $webp_path = $upload_dir['basedir'] . '/' . ltrim($webp_url, '/');
