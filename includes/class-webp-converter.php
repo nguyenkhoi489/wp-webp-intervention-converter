@@ -309,6 +309,28 @@ class WebP_Converter {
                 filesize($file_path) / 1024 / 1024
             ));
             
+            // Auto-resize if width > 2560px (WordPress recommended max)
+            $max_width = 2560;
+            if ($original_width > $max_width) {
+                $scale_ratio = $max_width / $original_width;
+                $new_height = (int) round($original_height * $scale_ratio);
+                
+                error_log(sprintf(
+                    'WebP Converter: Resizing %s from %dx%d to %dx%d',
+                    basename($file_path),
+                    $original_width,
+                    $original_height,
+                    $max_width,
+                    $new_height
+                ));
+                
+                $image->scale($max_width, $new_height);
+                
+                // Update dimensions for optimization
+                $original_width = $max_width;
+                $original_height = $new_height;
+            }
+            
             // Optimize for file size limit
             $this->optimize_for_size_limit($image, $webp_path, $default_quality, $max_file_size, $original_width, $original_height);
             
