@@ -199,19 +199,45 @@ class WebP_Converter {
             return $metadata;
         }
         
+        // Check if we should delete originals
+        $delete_original = get_option('webp_converter_delete_original', false);
+        
         // Convert original image to WebP
-        $this->convert_to_webp($file_path);
+        $conversion_result = $this->convert_to_webp($file_path);
+        
+        // If original was deleted, update metadata
+        if ($conversion_result['deleted'] && !empty($conversion_result['webp_path'])) {
+            // Update main file path to WebP
+            $webp_path = $conversion_result['webp_path'];
+            update_attached_file($attachment_id, $webp_path);
+            
+            // Update file name in metadata
+            if (isset($metadata['file'])) {
+                $metadata['file'] = preg_replace('/\.(jpe?g|png)$/i', '.webp', $metadata['file']);
+            }
+            
+            // Update MIME type
+            wp_update_post([
+                'ID' => $attachment_id,
+                'post_mime_type' => 'image/webp'
+            ]);
+        }
         
         // Convert all thumbnail sizes to WebP
         if (!empty($metadata['sizes']) && is_array($metadata['sizes'])) {
-            $upload_dir = wp_upload_dir();
             $base_dir = dirname($file_path);
             
             foreach ($metadata['sizes'] as $size => $size_data) {
                 if (isset($size_data['file'])) {
                     $thumbnail_path = $base_dir . '/' . $size_data['file'];
                     if (file_exists($thumbnail_path)) {
-                        $this->convert_to_webp($thumbnail_path);
+                        $thumb_result = $this->convert_to_webp($thumbnail_path);
+                        
+                        // Update thumbnail metadata if deleted
+                        if ($thumb_result['deleted']) {
+                            $metadata['sizes'][$size]['file'] = preg_replace('/\.(jpe?g|png)$/i', '.webp', $size_data['file']);
+                            $metadata['sizes'][$size]['mime-type'] = 'image/webp';
+                        }
                     }
                 }
             }
@@ -224,13 +250,19 @@ class WebP_Converter {
      * Convert image to WebP format with file size optimization
      * 
      * @param string $file_path Path to original image file
-     * @return bool True on success, false on failure
+     * @return array Conversion result with 'success', 'webp_path', and 'deleted' keys
      */
-    public function convert_to_webp(string $file_path): bool {
+    public function convert_to_webp(string $file_path): array {
+        $result = [
+            'success' => false,
+            'webp_path' => '',
+            'deleted' => false
+        ];
+        
         try {
             // Check if file exists
             if (!file_exists($file_path)) {
-                return false;
+                return $result;
             }
             
             // Get WebP file path (same directory, different extension)
@@ -238,12 +270,15 @@ class WebP_Converter {
             
             // Skip if WebP already exists
             if (file_exists($webp_path)) {
-                return true;
+                $result['success'] = true;
+                $result['webp_path'] = $webp_path;
+                return $result;
             }
             
             // Get settings
             $default_quality = get_option('webp_converter_default_quality', 80);
             $max_file_size = get_option('webp_converter_max_file_size', 200) * 1024; // Convert KB to bytes
+            $delete_original = get_option('webp_converter_delete_original', false);
             
             // Load image using Intervention Image v3
             $image = $this->manager->read($file_path);
@@ -255,11 +290,26 @@ class WebP_Converter {
             // Optimize for file size limit
             $this->optimize_for_size_limit($image, $webp_path, $default_quality, $max_file_size, $original_width, $original_height);
             
-            return true;
+            // Verify WebP was created successfully
+            if (file_exists($webp_path)) {
+                $result['success'] = true;
+                $result['webp_path'] = $webp_path;
+                
+                // Delete original file if enabled
+                if ($delete_original) {
+                    if (@unlink($file_path)) {
+                        $result['deleted'] = true;
+                    } else {
+                        error_log('WebP Converter Warning: Could not delete original file: ' . $file_path);
+                    }
+                }
+            }
+            
+            return $result;
             
         } catch (Exception $e) {
             error_log('WebP Converter Error: ' . $e->getMessage());
-            return false;
+            return $result;
         }
     }
     
@@ -407,11 +457,30 @@ class WebP_Converter {
             wp_send_json_error('File not found');
         }
         
+        // Get metadata before conversion
+        $metadata = wp_get_attachment_metadata($attachment_id);
+        
         // Convert original to WebP
-        $success = $this->convert_to_webp($file_path);
+        $result = $this->convert_to_webp($file_path);
+        
+        // If original was deleted, update metadata
+        if ($result['deleted'] && !empty($result['webp_path'])) {
+            // Update main file path to WebP
+            update_attached_file($attachment_id, $result['webp_path']);
+            
+            // Update file name in metadata
+            if (isset($metadata['file'])) {
+                $metadata['file'] = preg_replace('/\.(jpe?g|png)$/i', '.webp', $metadata['file']);
+            }
+            
+            // Update MIME type
+            wp_update_post([
+                'ID' => $attachment_id,
+                'post_mime_type' => 'image/webp'
+            ]);
+        }
         
         // Convert all thumbnails
-        $metadata = wp_get_attachment_metadata($attachment_id);
         if (!empty($metadata['sizes']) && is_array($metadata['sizes'])) {
             $base_dir = dirname($file_path);
             
@@ -419,16 +488,26 @@ class WebP_Converter {
                 if (isset($size_data['file'])) {
                     $thumbnail_path = $base_dir . '/' . $size_data['file'];
                     if (file_exists($thumbnail_path)) {
-                        $this->convert_to_webp($thumbnail_path);
+                        $thumb_result = $this->convert_to_webp($thumbnail_path);
+                        
+                        // Update thumbnail metadata if deleted
+                        if ($thumb_result['deleted']) {
+                            $metadata['sizes'][$size]['file'] = preg_replace('/\.(jpe?g|png)$/i', '.webp', $size_data['file']);
+                            $metadata['sizes'][$size]['mime-type'] = 'image/webp';
+                        }
                     }
                 }
             }
         }
         
-        if ($success) {
+        // Save updated metadata
+        wp_update_attachment_metadata($attachment_id, $metadata);
+        
+        if ($result['success']) {
             wp_send_json_success([
                 'message' => 'Image converted successfully',
                 'attachment_id' => $attachment_id,
+                'deleted' => $result['deleted']
             ]);
         } else {
             wp_send_json_error('Conversion failed');

@@ -41,6 +41,7 @@ class WebP_Settings {
         register_setting('webp_converter_settings', 'webp_converter_enable_auto_convert');
         register_setting('webp_converter_settings', 'webp_converter_default_quality');
         register_setting('webp_converter_settings', 'webp_converter_max_file_size');
+        register_setting('webp_converter_settings', 'webp_converter_delete_original');
     }
     
     /**
@@ -98,6 +99,7 @@ class WebP_Settings {
         $enable_auto_convert = get_option('webp_converter_enable_auto_convert', true);
         $default_quality = get_option('webp_converter_default_quality', 80);
         $max_file_size = get_option('webp_converter_max_file_size', 200);
+        $delete_original = get_option('webp_converter_delete_original', false);
         
         ?>
         <div class="wrap">
@@ -169,6 +171,24 @@ class WebP_Settings {
                             </p>
                         </td>
                     </tr>
+                    
+                    <tr>
+                        <th scope="row">
+                            <label for="delete_original">
+                                <?php echo esc_html__('Delete Original Images', 'wp-webp-intervention-converter'); ?>
+                            </label>
+                        </th>
+                        <td>
+                            <input type="checkbox" 
+                                   id="delete_original" 
+                                   name="webp_converter_delete_original" 
+                                   value="1" 
+                                   <?php checked($delete_original, true); ?>>
+                            <p class="description" style="color: #d63638; font-weight: 600;">
+                                ⚠️ <?php echo esc_html__('CẢNH BÁO: Sẽ xóa vĩnh viễn ảnh JPG/PNG gốc sau khi chuyển đổi thành WebP. Hành động này KHÔNG THỂ HOÀN TÁC!', 'wp-webp-intervention-converter'); ?>
+                            </p>
+                        </td>
+                    </tr>
                 </table>
                 
                 <p class="submit">
@@ -223,6 +243,10 @@ class WebP_Settings {
             : 200;
         $max_file_size = max(50, $max_file_size);
         update_option('webp_converter_max_file_size', $max_file_size);
+        
+        // Delete original
+        $delete_original = isset($_POST['webp_converter_delete_original']) ? true : false;
+        update_option('webp_converter_delete_original', $delete_original);
         
         // Redirect with success message
         wp_redirect(add_query_arg('settings-updated', 'true', wp_get_referer()));

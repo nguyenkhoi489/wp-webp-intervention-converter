@@ -83,6 +83,7 @@ function wp_webp_converter_activate(): void {
         'enable_auto_convert' => true,
         'default_quality' => 80,
         'max_file_size' => 200, // KB
+        'delete_original' => false, // Safety: OFF by default
     ];
     
     foreach ($defaults as $key => $value) {
