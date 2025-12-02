@@ -16,14 +16,26 @@ class WebP_Converter {
     private ImageManager $manager;
     
     /**
+     * Queue of files to delete after WordPress finishes processing
+     * @var array
+     */
+    private array $deletion_queue = [];
+    
+    /**
      * Constructor - Register hooks
      */
     public function __construct() {
         // Initialize Intervention Image v3 with GD driver
         $this->manager = new ImageManager(new GdDriver());
         
-        // Hook into upload process
+        // Hook into upload process (priority 10 - convert during upload)
         add_filter('wp_generate_attachment_metadata', [$this, 'auto_convert_on_upload'], 10, 2);
+        
+        // Hook to delete files AFTER all processing is done (priority 999 - run last)
+        add_filter('wp_generate_attachment_metadata', [$this, 'schedule_deferred_deletion'], 999, 2);
+        
+        // Shutdown hook to actually delete queued files
+        add_action('shutdown', [$this, 'process_deletion_queue']);
         
         // AJAX handlers for batch conversion
         add_action('wp_ajax_get_images_for_batch', [$this, 'ajax_get_images_for_batch']);
@@ -221,6 +233,101 @@ class WebP_Converter {
         }
         
         return $metadata;
+    }
+    
+    /**
+     * Schedule files for deferred deletion (runs AFTER WordPress finishes all processing)
+     * Priority 999 ensures this runs after all other plugins/themes
+     * 
+     * @param array $metadata Attachment metadata
+     * @param int $attachment_id Attachment ID  
+     * @return array Unmodified metadata
+     */
+    public function schedule_deferred_deletion(array $metadata, int $attachment_id): array {
+        // Check if deletion is enabled
+        if (!get_option('webp_converter_delete_original', false)) {
+            return $metadata;
+        }
+        
+        // Get attachment file path
+        $file_path = get_attached_file($attachment_id);
+        
+        // Only process JPG and PNG images
+        $mime_type = get_post_mime_type($attachment_id);
+        if (!in_array($mime_type, ['image/jpeg', 'image/png'])) {
+            return $metadata;
+        }
+        
+        // Check if WebP version exists before queuing for deletion
+        $webp_path = preg_replace('/\.(jpe?g|png)$/i', '.webp', $file_path);
+        if (file_exists($webp_path)) {
+            $this->deletion_queue[] = $file_path;
+            
+            error_log(sprintf(
+                'WebP Converter: Queued for deletion: %s',
+                basename($file_path)
+            ));
+        }
+        
+        // Queue thumbnails for deletion
+        if (!empty($metadata['sizes']) && is_array($metadata['sizes'])) {
+            $base_dir = dirname($file_path);
+            
+            foreach ($metadata['sizes'] as $size => $size_data) {
+                if (isset($size_data['file'])) {
+                    $thumbnail_path = $base_dir . '/' . $size_data['file'];
+                    $thumbnail_webp = preg_replace('/\.(jpe?g|png)$/i', '.webp', $thumbnail_path);
+                    
+                    if (file_exists($thumbnail_webp)) {
+                        $this->deletion_queue[] = $thumbnail_path;
+                    }
+                }
+            }
+        }
+        
+        return $metadata;
+    }
+    
+    /**
+     * Process deletion queue on shutdown (after all processing is complete)
+     * This ensures WordPress has finished generating thumbnails before we delete originals
+     */
+    public function process_deletion_queue(): void {
+        if (empty($this->deletion_queue)) {
+            return;
+        }
+        
+        $deleted_count = 0;
+        $error_count = 0;
+        
+        foreach ($this->deletion_queue as $file_path) {
+            if (file_exists($file_path)) {
+                if (@unlink($file_path)) {
+                    $deleted_count++;
+                    error_log(sprintf(
+                        'WebP Converter: Deleted (deferred) %s',
+                        basename($file_path)
+                    ));
+                } else {
+                    $error_count++;
+                    error_log(sprintf(
+                        'WebP Converter Warning: Failed to delete %s',
+                        basename($file_path)
+                    ));
+                }
+            }
+        }
+        
+        if ($deleted_count > 0) {
+            error_log(sprintf(
+                'WebP Converter: Deferred deletion complete. Deleted: %d, Errors: %d',
+                $deleted_count,
+                $error_count
+            ));
+        }
+        
+        // Clear the queue
+        $this->deletion_queue = [];
     }
     
     /**

@@ -195,10 +195,12 @@ class WebP_Settings {
                                    value="1" 
                                    <?php checked($delete_original, true); ?>>
                             <p class="description" style="color: #d63638; font-weight: 600;">
-                                ⚠️ <?php echo esc_html__('CẢNH BÁO: Chỉ xóa file gốc khi dùng "Batch Convert". KHÔNG xóa khi auto-upload (để tránh lỗi).', 'wp-webp-intervention-converter'); ?>
+                                ⚠️ <?php echo esc_html__('CẢNH BÁO: Sẽ xóa vĩnh viễn file JPG/PNG gốc sau khi convert thành WebP!', 'wp-webp-intervention-converter'); ?>
                             </p>
                             <p class="description">
-                                <?php echo esc_html__('Khi bật: File JPG/PNG sẽ bị xóa sau khi convert thành WebP qua Batch Convert. Auto-upload vẫn giữ file gốc.', 'wp-webp-intervention-converter'); ?>
+                                <strong>✅ An toàn:</strong> <?php echo esc_html__('File gốc chỉ bị xóa SAU KHI WordPress xử lý xong thumbnails (sử dụng deferred deletion).', 'wp-webp-intervention-converter'); ?><br>
+                                <?php echo esc_html__('• Auto-upload: Xóa tự động sau khi xử lý xong', 'wp-webp-intervention-converter'); ?><br>
+                                <?php echo esc_html__('• Batch Convert: Xóa ngay sau convert', 'wp-webp-intervention-converter'); ?>
                             </p>
                         </td>
                     </tr>
