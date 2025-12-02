@@ -265,6 +265,10 @@ class WebP_Converter {
                 return $result;
             }
             
+            // Increase memory limit temporarily for large images
+            $original_memory_limit = ini_get('memory_limit');
+            @ini_set('memory_limit', '512M');
+            
             // Get WebP file path (same directory, different extension)
             $webp_path = preg_replace('/\.(jpe?g|png)$/i', '.webp', $file_path);
             
@@ -272,6 +276,15 @@ class WebP_Converter {
             if (file_exists($webp_path)) {
                 $result['success'] = true;
                 $result['webp_path'] = $webp_path;
+                @ini_set('memory_limit', $original_memory_limit);
+                return $result;
+            }
+            
+            // Check image dimensions before processing
+            $image_info = @getimagesize($file_path);
+            if ($image_info === false) {
+                error_log('WebP Converter Error: Cannot get image size for: ' . $file_path);
+                @ini_set('memory_limit', $original_memory_limit);
                 return $result;
             }
             
@@ -287,23 +300,45 @@ class WebP_Converter {
             $original_width = $image->width();
             $original_height = $image->height();
             
+            // Log processing for debugging
+            error_log(sprintf(
+                'WebP Converter: Processing %s (%dx%d, %.2f MB)',
+                basename($file_path),
+                $original_width,
+                $original_height,
+                filesize($file_path) / 1024 / 1024
+            ));
+            
             // Optimize for file size limit
             $this->optimize_for_size_limit($image, $webp_path, $default_quality, $max_file_size, $original_width, $original_height);
+            
+            // Free memory
+            unset($image);
             
             // Verify WebP was created successfully
             if (file_exists($webp_path)) {
                 $result['success'] = true;
                 $result['webp_path'] = $webp_path;
                 
+                error_log(sprintf(
+                    'WebP Converter: Created %s (%.2f KB)',
+                    basename($webp_path),
+                    filesize($webp_path) / 1024
+                ));
+                
                 // Delete original file if enabled
                 if ($delete_original) {
                     if (@unlink($file_path)) {
                         $result['deleted'] = true;
+                        error_log('WebP Converter: Deleted original file: ' . basename($file_path));
                     } else {
                         error_log('WebP Converter Warning: Could not delete original file: ' . $file_path);
                     }
                 }
             }
+            
+            // Restore memory limit
+            @ini_set('memory_limit', $original_memory_limit);
             
             return $result;
             

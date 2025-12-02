@@ -105,6 +105,16 @@ class WebP_Settings {
         <div class="wrap">
             <h1><?php echo esc_html__('WebP Converter Settings', 'wp-webp-intervention-converter'); ?></h1>
             
+            <div class="notice notice-info">
+                <p><strong>💡 Gặp lỗi "server cannot process the image"?</strong></p>
+                <ul style="margin-left: 20px;">
+                    <li>Plugin tự động tăng memory lên 512MB khi xử lý ảnh</li>
+                    <li>Nếu vẫn lỗi, hãy tắt "Enable Auto Convert" tạm thời</li>
+                    <li>Upload ảnh nhỏ hơn (dưới 2560px) hoặc nén trước khi upload</li>
+                    <li>Check error log để xem chi tiết: <code>wp-content/debug.log</code></li>
+                </ul>
+            </div>
+            
             <?php if (isset($_GET['settings-updated'])): ?>
                 <div class="notice notice-success is-dismissible">
                     <p><?php echo esc_html__('Settings saved successfully.', 'wp-webp-intervention-converter'); ?></p>
