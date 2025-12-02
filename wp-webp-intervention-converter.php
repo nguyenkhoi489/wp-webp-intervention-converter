@@ -22,8 +22,24 @@ define('WP_WEBP_CONVERTER_VERSION', '1.0.0');
 define('WP_WEBP_CONVERTER_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('WP_WEBP_CONVERTER_PLUGIN_URL', plugin_dir_url(__FILE__));
 
+// Check if Composer dependencies are installed
+$autoload_file = __DIR__ . '/vendor/autoload.php';
+if (!file_exists($autoload_file)) {
+    add_action('admin_notices', function() {
+        ?>
+        <div class="notice notice-error">
+            <p><strong>WP WebP Intervention Converter Error:</strong></p>
+            <p>Composer dependencies không được cài đặt. Vui lòng chạy lệnh sau trong thư mục plugin:</p>
+            <p><code>cd <?php echo esc_html(WP_WEBP_CONVERTER_PLUGIN_DIR); ?> && composer install</code></p>
+            <p>Hoặc download plugin đã build sẵn từ GitHub releases.</p>
+        </div>
+        <?php
+    });
+    return; // Stop plugin initialization
+}
+
 // Load Composer autoloader for Intervention Image v3
-require_once __DIR__ . '/vendor/autoload.php';
+require_once $autoload_file;
 
 // Include plugin classes
 require_once WP_WEBP_CONVERTER_PLUGIN_DIR . 'includes/class-webp-settings.php';
