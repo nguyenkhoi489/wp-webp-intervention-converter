@@ -109,7 +109,8 @@ class WebP_Settings {
                 <p><strong>💡 Thông tin quan trọng:</strong></p>
                 <ul style="margin-left: 20px;">
                     <li>✅ <strong>Tự động resize:</strong> Ảnh có width > 2560px sẽ tự động resize về 2560px (giữ nguyên tỷ lệ)</li>
-                    <li>✅ Plugin tự động tăng memory lên 512MB khi xử lý ảnh</li>
+                    <li>✅ Plugin tự động tăng memory lên 1GB và timeout lên 5 phút khi xử lý ảnh</li>
+                    <li>⚠️ <strong>Giới hạn:</strong> Bỏ qua ảnh > 10MB hoặc > 8000px để tránh crash server</li>
                     <li>💡 Nếu gặp lỗi "server cannot process", tắt "Enable Auto Convert" tạm thời</li>
                     <li>📝 Check error log để xem chi tiết: <code>wp-content/debug.log</code></li>
                 </ul>

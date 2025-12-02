@@ -350,9 +350,13 @@ class WebP_Converter {
                 return $result;
             }
             
-            // Increase memory limit temporarily for large images
+            // Increase memory limit and execution time for large images
             $original_memory_limit = ini_get('memory_limit');
-            @ini_set('memory_limit', '512M');
+            $original_max_execution = ini_get('max_execution_time');
+            
+            // Aggressive limits for large images
+            @ini_set('memory_limit', '1024M'); // 1GB for safety
+            @set_time_limit(300); // 5 minutes max
             
             // Get WebP file path (same directory, different extension)
             $webp_path = preg_replace('/\.(jpe?g|png)$/i', '.webp', $file_path);
@@ -362,14 +366,34 @@ class WebP_Converter {
                 $result['success'] = true;
                 $result['webp_path'] = $webp_path;
                 @ini_set('memory_limit', $original_memory_limit);
+                @set_time_limit($original_max_execution);
                 return $result;
             }
             
-            // Check image dimensions before processing
+            // Check image dimensions and file size before processing
             $image_info = @getimagesize($file_path);
             if ($image_info === false) {
                 error_log('WebP Converter Error: Cannot get image size for: ' . $file_path);
                 @ini_set('memory_limit', $original_memory_limit);
+                @set_time_limit($original_max_execution);
+                return $result;
+            }
+            
+            $file_size_mb = filesize($file_path) / 1024 / 1024;
+            $width = $image_info[0];
+            $height = $image_info[1];
+            
+            // Skip extremely large files (> 10MB or > 8000px) to prevent server crash
+            if ($file_size_mb > 10 || $width > 8000 || $height > 8000) {
+                error_log(sprintf(
+                    'WebP Converter: Skipping extremely large file %s (%dx%d, %.2f MB) - too risky',
+                    basename($file_path),
+                    $width,
+                    $height,
+                    $file_size_mb
+                ));
+                @ini_set('memory_limit', $original_memory_limit);
+                @set_time_limit($original_max_execution);
                 return $result;
             }
             
@@ -446,13 +470,19 @@ class WebP_Converter {
                 }
             }
             
-            // Restore memory limit
+            // Restore limits
             @ini_set('memory_limit', $original_memory_limit);
+            @set_time_limit($original_max_execution);
             
             return $result;
             
         } catch (Exception $e) {
             error_log('WebP Converter Error: ' . $e->getMessage());
+            
+            // Restore limits on error
+            @ini_set('memory_limit', $original_memory_limit);
+            @set_time_limit($original_max_execution);
+            
             return $result;
         }
     }
