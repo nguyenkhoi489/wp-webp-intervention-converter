@@ -180,6 +180,10 @@ class WebP_Converter {
     /**
      * Auto convert image on upload
      * 
+     * NOTE: We do NOT delete original files here even if delete_original is enabled.
+     * This is because WordPress needs the original files to generate thumbnails.
+     * Deletion only happens via batch convert or manual actions.
+     * 
      * @param array $metadata Attachment metadata
      * @param int $attachment_id Attachment ID
      * @return array Modified metadata
@@ -199,29 +203,8 @@ class WebP_Converter {
             return $metadata;
         }
         
-        // Check if we should delete originals
-        $delete_original = get_option('webp_converter_delete_original', false);
-        
-        // Convert original image to WebP
-        $conversion_result = $this->convert_to_webp($file_path);
-        
-        // If original was deleted, update metadata
-        if ($conversion_result['deleted'] && !empty($conversion_result['webp_path'])) {
-            // Update main file path to WebP
-            $webp_path = $conversion_result['webp_path'];
-            update_attached_file($attachment_id, $webp_path);
-            
-            // Update file name in metadata
-            if (isset($metadata['file'])) {
-                $metadata['file'] = preg_replace('/\.(jpe?g|png)$/i', '.webp', $metadata['file']);
-            }
-            
-            // Update MIME type
-            wp_update_post([
-                'ID' => $attachment_id,
-                'post_mime_type' => 'image/webp'
-            ]);
-        }
+        // Convert original image to WebP (but DO NOT delete original)
+        $this->convert_to_webp($file_path, false); // false = don't delete during upload
         
         // Convert all thumbnail sizes to WebP
         if (!empty($metadata['sizes']) && is_array($metadata['sizes'])) {
@@ -231,13 +214,7 @@ class WebP_Converter {
                 if (isset($size_data['file'])) {
                     $thumbnail_path = $base_dir . '/' . $size_data['file'];
                     if (file_exists($thumbnail_path)) {
-                        $thumb_result = $this->convert_to_webp($thumbnail_path);
-                        
-                        // Update thumbnail metadata if deleted
-                        if ($thumb_result['deleted']) {
-                            $metadata['sizes'][$size]['file'] = preg_replace('/\.(jpe?g|png)$/i', '.webp', $size_data['file']);
-                            $metadata['sizes'][$size]['mime-type'] = 'image/webp';
-                        }
+                        $this->convert_to_webp($thumbnail_path, false); // false = don't delete
                     }
                 }
             }
@@ -250,9 +227,10 @@ class WebP_Converter {
      * Convert image to WebP format with file size optimization
      * 
      * @param string $file_path Path to original image file
+     * @param bool $allow_delete Whether to allow deleting original (default: true for batch, false for auto-upload)
      * @return array Conversion result with 'success', 'webp_path', and 'deleted' keys
      */
-    public function convert_to_webp(string $file_path): array {
+    public function convert_to_webp(string $file_path, bool $allow_delete = true): array {
         $result = [
             'success' => false,
             'webp_path' => '',
@@ -348,8 +326,10 @@ class WebP_Converter {
                     filesize($webp_path) / 1024
                 ));
                 
-                // Delete original file if enabled
-                if ($delete_original) {
+                // Delete original file if:
+                // 1. Deletion is allowed for this operation ($allow_delete = true)
+                // 2. AND user has enabled delete_original setting
+                if ($allow_delete && $delete_original) {
                     if (@unlink($file_path)) {
                         $result['deleted'] = true;
                         error_log('WebP Converter: Deleted original file: ' . basename($file_path));
