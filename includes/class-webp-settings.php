@@ -108,7 +108,7 @@ class WebP_Settings {
             <div class="notice notice-info">
                 <p><strong>💡 Thông tin quan trọng:</strong></p>
                 <ul style="margin-left: 20px;">
-                    <li>✅ <strong>Tự động resize:</strong> Ảnh có width > 2560px sẽ tự động resize về 1200px TRƯỚC KHI convert (tiết kiệm tài nguyên)</li>
+                    <li>✅ <strong>Tự động resize:</strong> TẤT CẢ ảnh có width > 1200px sẽ tự động resize về 1200px TRƯỚC KHI convert</li>
                     <li>✅ Plugin tự động tăng memory lên 1GB và timeout lên 5 phút khi xử lý ảnh</li>
                     <li>⚠️ <strong>Giới hạn:</strong> Bỏ qua ảnh > 10MB hoặc > 8000px để tránh crash server</li>
                     <li>💡 Nếu gặp lỗi "server cannot process", tắt "Enable Auto Convert" tạm thời</li>

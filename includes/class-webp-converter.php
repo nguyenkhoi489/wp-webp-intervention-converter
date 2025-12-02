@@ -420,8 +420,9 @@ class WebP_Converter {
             
             // IMPORTANT: Resize BEFORE converting to WebP (if needed)
             // This dramatically reduces memory usage and processing time
-            $max_width = 1200; // Resize large images to 1200px max width
-            if ($original_width > 2560) {
+            // Resize ALL images > 1200px to ensure manageable file sizes
+            $max_width = 1200; // Max width for web display
+            if ($original_width > $max_width) {
                 $scale_ratio = $max_width / $original_width;
                 $new_height = (int) round($original_height * $scale_ratio);
                 
