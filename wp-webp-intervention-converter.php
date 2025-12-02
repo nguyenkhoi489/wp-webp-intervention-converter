@@ -3,7 +3,7 @@
  * Plugin Name: WP WebP Intervention Converter
  * Plugin URI: https://example.com/wp-webp-intervention-converter
  * Description: Converts JPG/PNG images to WebP format using Intervention Image v3 with file size optimization.
- * Version: 1.0.0
+ * Version: 1.1.0
  * Author: Nguyên Khôi
  * Author URI: https://nguyenkhoi.dev
  * License: GPL v2 or later
@@ -18,7 +18,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('WP_WEBP_CONVERTER_VERSION', '1.0.0');
+define('WP_WEBP_CONVERTER_VERSION', '1.1.0');
 define('WP_WEBP_CONVERTER_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('WP_WEBP_CONVERTER_PLUGIN_URL', plugin_dir_url(__FILE__));
 
