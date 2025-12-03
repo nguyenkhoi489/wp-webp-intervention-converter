@@ -756,17 +756,22 @@ class WebP_Converter {
     
     /**
      * Replace thumbnail URL (for get_the_post_thumbnail_url)
-     * 
+    /**
      * This filter catches calls to get_the_post_thumbnail_url() in custom themes
      * 
      * @param string $url Thumbnail URL
-     * @param int $post_id Post ID
+     * @param int|\WP_Post $post_id Post ID or WP_Post object
      * @return string Modified URL
      */
-    public function replace_thumbnail_url(string $url, int $post_id): string {
+    public function replace_thumbnail_url(string $url, $post_id): string {
         // Skip if URL is empty
         if (empty($url)) {
             return $url;
+        }
+        
+        // Convert WP_Post object to post ID if needed
+        if (is_object($post_id) && isset($post_id->ID)) {
+            $post_id = $post_id->ID;
         }
         
         // Only process JPG/PNG images
