@@ -363,38 +363,7 @@ class WebP_Converter {
             
             // Skip if WebP already exists
             if (file_exists($webp_path)) {
-                $result['success'] = true;
-                $result['webp_path'] = $webp_path;
-                @ini_set('memory_limit', $original_memory_limit);
-                @set_time_limit($original_max_execution);
-                return $result;
-            }
-            
-            // Check image dimensions and file size before processing
-            $image_info = @getimagesize($file_path);
-            if ($image_info === false) {
-                error_log('WebP Converter Error: Cannot get image size for: ' . $file_path);
-                @ini_set('memory_limit', $original_memory_limit);
-                @set_time_limit($original_max_execution);
-                return $result;
-            }
-            
-            $file_size_mb = filesize($file_path) / 1024 / 1024;
-            $width = $image_info[0];
-            $height = $image_info[1];
-            
-            // Skip extremely large files (> 10MB or > 8000px) to prevent server crash
-            if ($file_size_mb > 10 || $width > 8000 || $height > 8000) {
-                error_log(sprintf(
-                    'WebP Converter: Skipping extremely large file %s (%dx%d, %.2f MB) - too risky',
-                    basename($file_path),
-                    $width,
-                    $height,
-                    $file_size_mb
-                ));
-                @ini_set('memory_limit', $original_memory_limit);
-                @set_time_limit($original_max_execution);
-                return $result;
+                return true;
             }
             
             // Get settings
@@ -487,6 +456,41 @@ class WebP_Converter {
             
             return $result;
         }
+    }
+    
+    /**
+     * Get unique WebP path by adding numbered suffix if file exists
+     * 
+     * @param string $webp_path Original WebP file path
+     * @return string Unique WebP file path
+     */
+    private function get_unique_webp_path(string $webp_path): string {
+        // If file doesn't exist, return original path
+        if (!file_exists($webp_path)) {
+            return $webp_path;
+        }
+        
+        // Get directory and filename parts
+        $dir = dirname($webp_path);
+        $filename = pathinfo($webp_path, PATHINFO_FILENAME);
+        $extension = pathinfo($webp_path, PATHINFO_EXTENSION);
+        
+        // Find unique filename with numbered suffix
+        $counter = 1;
+        $max_attempts = 1000; // Prevent infinite loop
+        
+        while ($counter < $max_attempts) {
+            $new_path = $dir . '/' . $filename . '-' . $counter . '.' . $extension;
+            
+            if (!file_exists($new_path)) {
+                return $new_path;
+            }
+            
+            $counter++;
+        }
+        
+        // If all attempts failed, return path with timestamp
+        return $dir . '/' . $filename . '-' . time() . '.' . $extension;
     }
     
     /**
