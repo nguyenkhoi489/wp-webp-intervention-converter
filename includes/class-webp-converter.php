@@ -361,10 +361,8 @@ class WebP_Converter {
             // Get WebP file path (same directory, different extension)
             $webp_path = preg_replace('/\.(jpe?g|png)$/i', '.webp', $file_path);
             
-            // Skip if WebP already exists
-            if (file_exists($webp_path)) {
-                return true;
-            }
+            // Generate unique filename if WebP already exists (add -1, -2, etc.)
+            $webp_path = $this->get_unique_webp_path($webp_path);
             
             // Get settings
             $default_quality = get_option('webp_converter_default_quality', 80);
