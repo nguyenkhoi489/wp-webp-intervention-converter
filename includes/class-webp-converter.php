@@ -368,7 +368,7 @@ class WebP_Converter {
             $default_quality = get_option('webp_converter_default_quality', 80);
             $max_file_size = get_option('webp_converter_max_file_size', 200) * 1024; // Convert KB to bytes
             $delete_original = get_option('webp_converter_delete_original', false);
-            $enable_resize = get_option('webp_converter_enable_resize', true);
+            $enable_resize = get_option('webp_converter_enable_resize', '1') === '1';
             $max_width = get_option('webp_converter_max_width', 1200);
             
             // Load image using Intervention Image v3

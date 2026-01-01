@@ -98,11 +98,11 @@ class WebP_Settings {
         }
         
         // Get current settings
-        $enable_auto_convert = get_option('webp_converter_enable_auto_convert', true);
+        $enable_auto_convert = (bool) get_option('webp_converter_enable_auto_convert', true);
         $default_quality = get_option('webp_converter_default_quality', 80);
         $max_file_size = get_option('webp_converter_max_file_size', 200);
-        $delete_original = get_option('webp_converter_delete_original', false);
-        $enable_resize = get_option('webp_converter_enable_resize', true);
+        $delete_original = (bool) get_option('webp_converter_delete_original', false);
+        $enable_resize = get_option('webp_converter_enable_resize', '1') === '1';
         $max_width = get_option('webp_converter_max_width', 1200);
         
         ?>
@@ -306,8 +306,8 @@ class WebP_Settings {
         $delete_original = isset($_POST['webp_converter_delete_original']) ? true : false;
         update_option('webp_converter_delete_original', $delete_original);
         
-        // Enable resize
-        $enable_resize = isset($_POST['webp_converter_enable_resize']) ? true : false;
+        // Enable resize - save as '1' or '0' to avoid WordPress boolean issues
+        $enable_resize = isset($_POST['webp_converter_enable_resize']) ? '1' : '0';
         update_option('webp_converter_enable_resize', $enable_resize);
         
         // Max width
