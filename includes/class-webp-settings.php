@@ -42,6 +42,8 @@ class WebP_Settings {
         register_setting('webp_converter_settings', 'webp_converter_default_quality');
         register_setting('webp_converter_settings', 'webp_converter_max_file_size');
         register_setting('webp_converter_settings', 'webp_converter_delete_original');
+        register_setting('webp_converter_settings', 'webp_converter_enable_resize');
+        register_setting('webp_converter_settings', 'webp_converter_max_width');
     }
     
     /**
@@ -100,6 +102,8 @@ class WebP_Settings {
         $default_quality = get_option('webp_converter_default_quality', 80);
         $max_file_size = get_option('webp_converter_max_file_size', 200);
         $delete_original = get_option('webp_converter_delete_original', false);
+        $enable_resize = get_option('webp_converter_enable_resize', true);
+        $max_width = get_option('webp_converter_max_width', 1200);
         
         ?>
         <div class="wrap">
@@ -108,7 +112,7 @@ class WebP_Settings {
             <div class="notice notice-info">
                 <p><strong>💡 Thông tin quan trọng:</strong></p>
                 <ul style="margin-left: 20px;">
-                    <li>✅ <strong>Tự động resize:</strong> TẤT CẢ ảnh có width > 1200px sẽ tự động resize về 1200px TRƯỚC KHI convert</li>
+                    <li>✅ <strong>Tự động resize:</strong> Nếu bật "Enable Resize", ảnh có width > Max Width sẽ tự động resize TRƯỚC KHI convert</li>
                     <li>✅ Plugin tự động tăng memory lên 1GB và timeout lên 5 phút khi xử lý ảnh</li>
                     <li>⚠️ <strong>Giới hạn:</strong> Bỏ qua ảnh > 10MB hoặc > 8000px để tránh crash server</li>
                     <li>💡 Nếu gặp lỗi "server cannot process", tắt "Enable Auto Convert" tạm thời</li>
@@ -179,6 +183,44 @@ class WebP_Settings {
                                    step="10">
                             <p class="description">
                                 <?php echo esc_html__('Maximum WebP file size in KB. The converter will reduce quality/resize if needed. Default: 200KB', 'wp-webp-intervention-converter'); ?>
+                            </p>
+                        </td>
+                    </tr>
+                    
+                    <tr>
+                        <th scope="row">
+                            <label for="enable_resize">
+                                <?php echo esc_html__('Enable Auto Resize', 'wp-webp-intervention-converter'); ?>
+                            </label>
+                        </th>
+                        <td>
+                            <input type="checkbox" 
+                                   id="enable_resize" 
+                                   name="webp_converter_enable_resize" 
+                                   value="1" 
+                                   <?php checked($enable_resize, true); ?>>
+                            <p class="description">
+                                <?php echo esc_html__('Automatically resize images larger than Max Width before converting to WebP.', 'wp-webp-intervention-converter'); ?>
+                            </p>
+                        </td>
+                    </tr>
+                    
+                    <tr>
+                        <th scope="row">
+                            <label for="max_width">
+                                <?php echo esc_html__('Max Width (px)', 'wp-webp-intervention-converter'); ?>
+                            </label>
+                        </th>
+                        <td>
+                            <input type="number" 
+                                   id="max_width" 
+                                   name="webp_converter_max_width" 
+                                   value="<?php echo esc_attr($max_width); ?>" 
+                                   min="400" 
+                                   max="4000" 
+                                   step="100">
+                            <p class="description">
+                                <?php echo esc_html__('Maximum width in pixels. Images wider than this will be resized (if auto resize is enabled). Default: 1200px', 'wp-webp-intervention-converter'); ?>
                             </p>
                         </td>
                     </tr>
@@ -263,6 +305,17 @@ class WebP_Settings {
         // Delete original
         $delete_original = isset($_POST['webp_converter_delete_original']) ? true : false;
         update_option('webp_converter_delete_original', $delete_original);
+        
+        // Enable resize
+        $enable_resize = isset($_POST['webp_converter_enable_resize']) ? true : false;
+        update_option('webp_converter_enable_resize', $enable_resize);
+        
+        // Max width
+        $max_width = isset($_POST['webp_converter_max_width']) 
+            ? intval($_POST['webp_converter_max_width']) 
+            : 1200;
+        $max_width = min(4000, max(400, $max_width));
+        update_option('webp_converter_max_width', $max_width);
         
         // Redirect with success message
         wp_redirect(add_query_arg('settings-updated', 'true', wp_get_referer()));

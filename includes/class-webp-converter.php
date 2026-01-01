@@ -368,6 +368,8 @@ class WebP_Converter {
             $default_quality = get_option('webp_converter_default_quality', 80);
             $max_file_size = get_option('webp_converter_max_file_size', 200) * 1024; // Convert KB to bytes
             $delete_original = get_option('webp_converter_delete_original', false);
+            $enable_resize = get_option('webp_converter_enable_resize', true);
+            $max_width = get_option('webp_converter_max_width', 1200);
             
             // Load image using Intervention Image v3
             $image = $this->manager->read($file_path);
@@ -385,11 +387,9 @@ class WebP_Converter {
                 filesize($file_path) / 1024 / 1024
             ));
             
-            // IMPORTANT: Resize BEFORE converting to WebP (if needed)
+            // IMPORTANT: Resize BEFORE converting to WebP (if enabled and needed)
             // This dramatically reduces memory usage and processing time
-            // Resize ALL images > 1200px to ensure manageable file sizes
-            $max_width = 1200; // Max width for web display
-            if ($original_width > $max_width) {
+            if ($enable_resize && $original_width > $max_width) {
                 $scale_ratio = $max_width / $original_width;
                 $new_height = (int) round($original_height * $scale_ratio);
                 

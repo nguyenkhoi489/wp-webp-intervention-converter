@@ -100,6 +100,8 @@ function wp_webp_converter_activate(): void {
         'default_quality' => 80,
         'max_file_size' => 200, // KB
         'delete_original' => false, // Safety: OFF by default
+        'enable_resize' => true, // Enable auto resize before convert
+        'max_width' => 1200, // Max width in pixels
     ];
     
     foreach ($defaults as $key => $value) {
