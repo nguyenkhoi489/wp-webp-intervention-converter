@@ -261,7 +261,14 @@ class WebP_Converter {
         // Check if WebP version exists before queuing for deletion
         $webp_path = preg_replace('/\.(jpe?g|png)$/i', '.webp', $file_path);
         if (file_exists($webp_path)) {
-            $this->deletion_queue[] = $file_path;
+            // Store attachment_id along with file info for metadata update
+            $this->deletion_queue[] = [
+                'attachment_id' => $attachment_id,
+                'file_path' => $file_path,
+                'webp_path' => $webp_path,
+                'is_main' => true,
+                'metadata' => $metadata
+            ];
             
             error_log(sprintf(
                 'WebP Converter: Queued for deletion: %s',
@@ -279,7 +286,13 @@ class WebP_Converter {
                     $thumbnail_webp = preg_replace('/\.(jpe?g|png)$/i', '.webp', $thumbnail_path);
                     
                     if (file_exists($thumbnail_webp)) {
-                        $this->deletion_queue[] = $thumbnail_path;
+                        $this->deletion_queue[] = [
+                            'attachment_id' => $attachment_id,
+                            'file_path' => $thumbnail_path,
+                            'webp_path' => $thumbnail_webp,
+                            'is_main' => false,
+                            'size_name' => $size
+                        ];
                     }
                 }
             }
@@ -299,8 +312,21 @@ class WebP_Converter {
         
         $deleted_count = 0;
         $error_count = 0;
+        $updated_attachments = [];
         
-        foreach ($this->deletion_queue as $file_path) {
+        foreach ($this->deletion_queue as $item) {
+            // Handle both old format (string) and new format (array)
+            if (is_string($item)) {
+                $file_path = $item;
+                if (file_exists($file_path) && @unlink($file_path)) {
+                    $deleted_count++;
+                }
+                continue;
+            }
+            
+            $file_path = $item['file_path'];
+            $attachment_id = $item['attachment_id'];
+            
             if (file_exists($file_path)) {
                 if (@unlink($file_path)) {
                     $deleted_count++;
@@ -308,6 +334,21 @@ class WebP_Converter {
                         'WebP Converter: Deleted (deferred) %s',
                         basename($file_path)
                     ));
+                    
+                    // Track attachment for metadata update
+                    if (!isset($updated_attachments[$attachment_id])) {
+                        $updated_attachments[$attachment_id] = [
+                            'main_webp' => null,
+                            'sizes' => []
+                        ];
+                    }
+                    
+                    if ($item['is_main']) {
+                        $updated_attachments[$attachment_id]['main_webp'] = $item['webp_path'];
+                        $updated_attachments[$attachment_id]['metadata'] = $item['metadata'];
+                    } else {
+                        $updated_attachments[$attachment_id]['sizes'][$item['size_name']] = $item['webp_path'];
+                    }
                 } else {
                     $error_count++;
                     error_log(sprintf(
@@ -316,6 +357,11 @@ class WebP_Converter {
                     ));
                 }
             }
+        }
+        
+        // Update metadata for all processed attachments
+        foreach ($updated_attachments as $attachment_id => $data) {
+            $this->update_attachment_to_webp($attachment_id, $data);
         }
         
         if ($deleted_count > 0) {
@@ -328,6 +374,53 @@ class WebP_Converter {
         
         // Clear the queue
         $this->deletion_queue = [];
+    }
+    
+    /**
+     * Update attachment metadata and MIME type to WebP after deleting original
+     * 
+     * @param int $attachment_id Attachment ID
+     * @param array $data Deletion data with main_webp, sizes, and metadata
+     */
+    private function update_attachment_to_webp(int $attachment_id, array $data): void {
+        if (empty($data['main_webp'])) {
+            return;
+        }
+        
+        // Update the attached file path to WebP
+        update_attached_file($attachment_id, $data['main_webp']);
+        
+        // Get current metadata
+        $metadata = isset($data['metadata']) ? $data['metadata'] : wp_get_attachment_metadata($attachment_id);
+        
+        // Update main file in metadata
+        if (isset($metadata['file'])) {
+            $metadata['file'] = preg_replace('/\.(jpe?g|png)$/i', '.webp', $metadata['file']);
+        }
+        
+        // Update thumbnail sizes metadata
+        if (!empty($metadata['sizes']) && is_array($metadata['sizes'])) {
+            foreach ($metadata['sizes'] as $size => $size_data) {
+                if (isset($size_data['file'])) {
+                    $metadata['sizes'][$size]['file'] = preg_replace('/\.(jpe?g|png)$/i', '.webp', $size_data['file']);
+                    $metadata['sizes'][$size]['mime-type'] = 'image/webp';
+                }
+            }
+        }
+        
+        // Save updated metadata
+        wp_update_attachment_metadata($attachment_id, $metadata);
+        
+        // Update MIME type
+        wp_update_post([
+            'ID' => $attachment_id,
+            'post_mime_type' => 'image/webp'
+        ]);
+        
+        error_log(sprintf(
+            'WebP Converter: Updated attachment #%d metadata to WebP',
+            $attachment_id
+        ));
     }
     
     /**
